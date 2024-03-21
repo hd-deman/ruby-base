@@ -17,7 +17,6 @@ RUN \
     curl https://storage.yandexcloud.net/deployment-assets.yasno.live/min.io/mc.$MINIO_MC_RELEASE -o /usr/local/bin/mc && \
     chmod +x /usr/local/bin/mc
 
-COPY --chown=yasno .node-version ./
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
 # install yarn
 RUN apt-get install -y nodejs && npm i -g yarn
