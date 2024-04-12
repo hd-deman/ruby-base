@@ -1,22 +1,47 @@
-FROM ruby:3.1.2-slim
+# syntax = docker/dockerfile:1
 
-RUN \
-    apt-get update && \
-    apt-get install -y \
-    curl git gcc g++ make clang cmake \
-    ## For PostgreSQL gems
-    libpq-dev postgresql-client \
-    # For imagemagik
-    imagemagick libmagickcore-dev libmagickwand-dev \
-    ## For Chrome (PDF)
-    libnss3 libatk-bridge2.0-0 libcups2 libdrm2 \
-    libxkbcommon-x11-0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 screen && \
-    apt-get clean && rm -rf /tmp/* /var/tmp/*
+ARG DISTRO_NAME
+ARG RUBY_VERSION=3.1.4
 
-RUN \
-    curl https://storage.yandexcloud.net/deployment-assets.yasno.live/min.io/mc.$MINIO_MC_RELEASE -o /usr/local/bin/mc && \
-    chmod +x /usr/local/bin/mc
+FROM ruby:${RUBY_VERSION}-${DISTRO_NAME}
 
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-# install yarn
-RUN apt-get install -y nodejs && npm i -g yarn
+ARG BUNDLER_VERSION=2.3.11
+ARG DISTRO_NAME=bookworm
+ARG NODE_MAJOR=18
+ARG PG_MAJOR=15
+ARG YARN_VERSION=latest
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    --mount=type=tmpfs,target=/var/log \
+    rm -f /etc/apt/apt.conf.d/docker-clean; \
+    echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/01keep-debs; \
+    apt-get update -qq && \
+    apt-get install -yq --no-install-recommends \
+    build-essential \
+    cmake \
+    libclang-dev \
+    postgresql-client-${PG_MAJOR}
+
+RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | \
+    gpg --dearmor -o /etc/apt/trusted.gpg.d/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/trusted.gpg.d/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x ${DISTRO_NAME} main" | \
+    tee /etc/apt/sources.list.d/nodesource.list && \
+    echo "deb-src [signed-by=/etc/apt/trusted.gpg.d/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x ${DISTRO_NAME} main" | \
+    tee -a /etc/apt/sources.list.d/nodesource.list
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    --mount=type=tmpfs,target=/var/log \
+    apt-get update -qq && \
+    apt-get install -yq --no-install-recommends nodejs npm
+RUN npm install -g yarn@${YARN_VERSION}
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+RUN gem install bundler:${BUNDLER_VERSION}
+
+ENV BUNDLE_PATH=/usr/local/bundle \
+    BUNDLE_JOBS=4
+
+WORKDIR /app
