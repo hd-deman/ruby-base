@@ -33,7 +33,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     --mount=type=tmpfs,target=/var/log \
     apt-get update -qq && \
-    apt-get install -yq --no-install-recommends nodejs npm
+    apt-get install -yq --no-install-recommends nodejs npm git
 RUN npm install -g yarn@${YARN_VERSION}
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
